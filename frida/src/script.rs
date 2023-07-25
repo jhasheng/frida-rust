@@ -28,17 +28,17 @@ unsafe extern "C" fn call_on_message<I: ScriptHandler>(
     if data.is_null() {
         handler.on_message(body, &[], 0);
     } else {
-        let mut size: u64 = 0;
-        let bytes = frida_sys::g_bytes_get_data(data, &mut size);
-        let buffer: &[u8] = std::slice::from_raw_parts(bytes as *const u8, size as usize);
-        handler.on_message(body, buffer, size);
+        let mut cap: frida_sys::gsize = 0;
+        let bytes = frida_sys::g_bytes_get_data(data, &mut cap);
+        let buffer: &[u8] = std::slice::from_raw_parts(bytes as *const u8, cap as usize);
+        handler.on_message(body, buffer, cap as usize);
     }
 }
 
 /// Represents a script signal handler.
 pub trait ScriptHandler {
     /// Handler called when a message is shared from JavaScript to Rust.
-    fn on_message(&mut self, message: &str, bytes: &[u8], len: u64);
+    fn on_message(&mut self, message: &str, bytes: &[u8], len: usize);
 }
 
 /// Reprents a Frida script.
