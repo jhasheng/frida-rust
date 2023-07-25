@@ -16,22 +16,29 @@ use crate::{Error, Result};
 unsafe extern "C" fn call_on_message<I: ScriptHandler>(
     _script_ptr: *mut _FridaScript,
     message: *const i8,
-    _data: &frida_sys::_GBytes,
+    data: *mut frida_sys::_GBytes,
     user_data: *mut c_void,
 ) {
     let handler: &mut I = &mut *(user_data as *mut I);
 
-    handler.on_message(
-        CStr::from_ptr(message as *const c_char)
-            .to_str()
-            .unwrap_or_default(),
-    );
+    let body = CStr::from_ptr(message as *const c_char)
+        .to_str()
+        .unwrap_or_default();
+
+    if data.is_null() {
+        handler.on_message(body, &[], 0);
+    } else {
+        let mut size: u64 = 0;
+        let bytes = frida_sys::g_bytes_get_data(data, &mut size);
+        let buffer: &[u8] = std::slice::from_raw_parts(bytes as *const u8, size as usize);
+        handler.on_message(body, buffer, size);
+    }
 }
 
 /// Represents a script signal handler.
 pub trait ScriptHandler {
     /// Handler called when a message is shared from JavaScript to Rust.
-    fn on_message(&mut self, message: &str);
+    fn on_message(&mut self, message: &str, bytes: &[u8], len: u64);
 }
 
 /// Reprents a Frida script.
